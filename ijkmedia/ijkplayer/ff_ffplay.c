@@ -336,16 +336,20 @@ static int packet_queue_get(PacketQueue *q, AVPacket *pkt, int block, int *seria
 static int packet_queue_get_or_buffering(FFPlayer *ffp, PacketQueue *q, AVPacket *pkt, int *serial, int *finished)
 {
     assert(finished);
+	//设置了缓冲，直接去取数据，直到取到数据位为止
     if (!ffp->packet_buffering)
         return packet_queue_get(q, pkt, 1, serial);
 
     while (1) {
+		// 没有设置，就直接取，没有数据就直接返回
         int new_packet = packet_queue_get(q, pkt, 0, serial);
         if (new_packet < 0)
             return -1;
         else if (new_packet == 0) {
+			// 没有取到，通知上层缓冲状态
             if (q->is_buffer_indicator && !*finished)
                 ffp_toggle_buffering(ffp, 1);
+			//继续取数据，直到取到为止
             new_packet = packet_queue_get(q, pkt, 1, serial);
             if (new_packet < 0)
                 return -1;
@@ -3349,6 +3353,7 @@ static int read_thread(void *arg)
 #ifdef FFP_MERGE
         if (is->paused != is->last_paused) {
             is->last_paused = is->paused;
+			//如果暂停，网络下载也会被暂停，为了多路同步，这里估计需要修改
             if (is->paused)
                 is->read_pause_return = av_read_pause(ic);
             else
@@ -3608,9 +3613,11 @@ static int read_thread(void *arg)
         if (ffp->packet_buffering) {
             io_tick_counter = SDL_GetTickHR();
             if ((!ffp->first_video_frame_rendered && is->video_st) || (!ffp->first_audio_frame_rendered && is->audio_st)) {
+				// 每FAST_BUFFERING_CHECK_PER_MILLISECOND检测一次缓冲状态
                 if (abs((int)(io_tick_counter - prev_io_tick_counter)) > FAST_BUFFERING_CHECK_PER_MILLISECONDS) {
                     prev_io_tick_counter = io_tick_counter;
                     ffp->dcc.current_high_water_mark_in_ms = ffp->dcc.first_high_water_mark_in_ms;
+					//上报缓冲相关信息
                     ffp_check_buffering_l(ffp);
                 }
             } else {
@@ -4687,7 +4694,7 @@ void ffp_check_buffering_l(FFPlayer *ffp)
         if (cached_duration_in_ms >= 0) {
             buf_time_position = ffp_get_current_position_l(ffp) + cached_duration_in_ms;
             ffp->playable_duration_ms = buf_time_position;
-
+			//缓冲的时间
             buf_time_percent = (int)av_rescale(cached_duration_in_ms, 1005, hwm_in_ms * 10);
 #ifdef FFP_SHOW_DEMUX_CACHE
             av_log(ffp, AV_LOG_DEBUG, "time cache=%%%d (%d/%d)\n", buf_time_percent, cached_duration_in_ms, hwm_in_ms);
