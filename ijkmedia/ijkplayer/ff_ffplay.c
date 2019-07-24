@@ -644,6 +644,8 @@ static int decoder_decode_frame(FFPlayer *ffp, Decoder *d, AVFrame *frame, AVSub
                     ret = got_frame ? 0 : (pkt.data ? AVERROR(EAGAIN) : AVERROR_EOF);
                 }
             } else {
+                if (pkt.stream_index == ffp->is->audio_stream )
+                    av_log(d->avctx, AV_LOG_INFO, "pkt index:%d. tid:%d", pkt.stream_index, gettid()); 
                 if (avcodec_send_packet(d->avctx, &pkt) == AVERROR(EAGAIN)) {
                     av_log(d->avctx, AV_LOG_ERROR, "Receive_frame and send_packet both returned EAGAIN, which is an API violation.\n");
                     d->packet_pending = 1;
@@ -729,6 +731,7 @@ static Frame *frame_queue_peek_writable(FrameQueue *f)
     SDL_LockMutex(f->mutex);
     while (f->size >= f->max_size &&
            !f->pktq->abort_request) {
+            av_log(NULL, AV_LOG_INFO, "frame queue wait. pid:%d size:%d max_size:%d", gettid(), f->size, f->max_size);
         SDL_CondWait(f->cond, f->mutex);
     }
     SDL_UnlockMutex(f->mutex);
@@ -762,6 +765,7 @@ static void frame_queue_push(FrameQueue *f)
     SDL_LockMutex(f->mutex);
     f->size++;
     SDL_CondSignal(f->cond);
+    av_log(NULL, AV_LOG_INFO, "frame_queue_push frame signal. tid:%d", gettid());
     SDL_UnlockMutex(f->mutex);
 }
 
@@ -777,6 +781,7 @@ static void frame_queue_next(FrameQueue *f)
     SDL_LockMutex(f->mutex);
     f->size--;
     SDL_CondSignal(f->cond);
+    av_log(NULL, AV_LOG_INFO, "frame queue_next frame signal. tid:%d", gettid());
     SDL_UnlockMutex(f->mutex);
 }
 
@@ -1540,12 +1545,15 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
 
                 while (is->audio_accurate_seek_req && !is->abort_request) {
                     int64_t apts = is->accurate_seek_aframe_pts ;
+                    //音频和视频的时间差
                     deviation2 = apts - pts * 1000 * 1000;
+                    //音频和seek的时间差
                     deviation3 = apts - is->seek_pos;
-
+                    av_log(NULL, AV_LOG_INFO, "video accurate seek req. deviation2:%lld deviation3:%lld apts:%lld", deviation2, deviation3, apts);
                     if (deviation2 > -100 * 1000 && deviation3 < 0) {
                         break;
                     } else {
+                        av_log(NULL, AV_LOG_INFO, "video accurate seek sleep 20ms");
                         av_usleep(20 * 1000);
                     }
                     now = av_gettime_relative() / 1000;
@@ -1557,7 +1565,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                 if ((now - is->accurate_seek_start_time) <= ffp->accurate_seek_timeout) {
                     return 1;  // drop some old frame when do accurate seek
                 } else {
-                    av_log(NULL, AV_LOG_WARNING, "video accurate_seek is error, is->drop_vframe_count=%d, now = %lld, pts = %lf\n", is->drop_vframe_count, now, pts);
+                    av_log(NULL, AV_LOG_WARNING, "video accurate_seek is error, is->drop_vframe_count=%d, now = %lld, pts = %lf seek_timeout:%d\n", is->drop_vframe_count, now, pts, ffp->accurate_seek_timeout);
                     video_accurate_seek_fail = 1;  // if KEY_FRAME interval too big, disable accurate seek
                 }
             } else {
@@ -1998,18 +2006,22 @@ static int audio_thread(void *arg)
 
     do {
         ffp_audio_statistic_l(ffp);
+        av_log(NULL, AV_LOG_INFO, "before decode audio frame, tid:%d", gettid());
         if ((got_frame = decoder_decode_frame(ffp, &is->auddec, frame, NULL)) < 0)
             goto the_end;
-
+        av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lld is->audio_accurate_seek_req:%d is->seek_req:%d", 
+                                (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb), is->audio_accurate_seek_req, is->seek_req);
         if (got_frame) {
                 tb = (AVRational){1, frame->sample_rate};
                 if (ffp->enable_accurate_seek && is->audio_accurate_seek_req && !is->seek_req) {
                     frame_pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
                     now = av_gettime_relative() / 1000;
+                    av_log(NULL, AV_LOG_INFO, "audio accurate seek");
                     if (!isnan(frame_pts)) {
                         samples_duration = (double) frame->nb_samples / frame->sample_rate;
                         audio_clock = frame_pts + samples_duration;
                         is->accurate_seek_aframe_pts = audio_clock * 1000 * 1000;
+                        av_log(NULL,AV_LOG_INFO, "accurate_seek_aframe_pts:%lld", is->accurate_seek_aframe_pts);
                         audio_seek_pos = is->seek_pos;
                         deviation = llabs((int64_t)(audio_clock * 1000 * 1000) - is->seek_pos);
                         if ((audio_clock * 1000 * 1000 < is->seek_pos ) || deviation > MAX_DEVIATION) {
@@ -2017,6 +2029,7 @@ static int audio_thread(void *arg)
                                 SDL_LockMutex(is->accurate_seek_mutex);
                                 if (is->accurate_seek_start_time <= 0 && (is->video_stream < 0 || is->video_accurate_seek_req)) {
                                     is->accurate_seek_start_time = now;
+                                    av_log(NULL, AV_LOG_INFO, "accurete seek start time:%lld", now);
                                 }
                                 SDL_UnlockMutex(is->accurate_seek_mutex);
                                 av_log(NULL, AV_LOG_INFO, "audio accurate_seek start, is->seek_pos=%lld, audio_clock=%lf, is->accurate_seek_start_time = %lld\n", is->seek_pos, audio_clock, is->accurate_seek_start_time);
@@ -2026,19 +2039,23 @@ static int audio_thread(void *arg)
                                 int64_t vpts = is->accurate_seek_vframe_pts;
                                 deviation2 = vpts  - audio_clock * 1000 * 1000;
                                 deviation3 = vpts  - is->seek_pos;
+                                av_log(NULL, AV_LOG_INFO, "video sub audio:%lld video sub seekPos:%lld", deviation2, deviation3);
                                 if (deviation2 > -100 * 1000 && deviation3 < 0) {
-
+                                    
                                     break;
                                 } else {
+                                    
                                     av_usleep(20 * 1000);
                                 }
                                 now = av_gettime_relative() / 1000;
+                                av_log(NULL, AV_LOG_INFO, "audio accurate seek sleep 20ms, update now time:%lld", now);
                                 if ((now - is->accurate_seek_start_time) > ffp->accurate_seek_timeout) {
                                     break;
                                 }
                             }
 
                             if(!is->video_accurate_seek_req && is->video_stream >= 0 && audio_clock * 1000 * 1000 > is->accurate_seek_vframe_pts) {
+                                av_log(NULL, AV_LOG_INFO, "accurate seek failed");
                                 audio_accurate_seek_fail = 1;
                             } else {
                                 now = av_gettime_relative() / 1000;
@@ -2133,16 +2150,22 @@ static int audio_thread(void *arg)
             while ((ret = av_buffersink_get_frame_flags(is->out_audio_filter, frame, 0)) >= 0) {
                 tb = av_buffersink_get_time_base(is->out_audio_filter);
 #endif
-                if (!(af = frame_queue_peek_writable(&is->sampq)))
+                av_log(NULL, AV_LOG_INFO, "audio before frame_queue_peek_writable tid:%d", gettid());
+                if (!(af = frame_queue_peek_writable(&is->sampq))) {
                     goto the_end;
-
+                    av_log(NULL, AV_LOG_INFO, "audio after frame_queue_peek_writable");
+                }
+                av_log(NULL, AV_LOG_INFO, "audio after frame_queue_peek_writable");
                 af->pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
                 af->pos = frame->pkt_pos;
                 af->serial = is->auddec.pkt_serial;
                 af->duration = av_q2d((AVRational){frame->nb_samples, frame->sample_rate});
 
                 av_frame_move_ref(af->frame, frame);
+                av_log(NULL, AV_LOG_INFO, "before audio frame_queue_push");
                 frame_queue_push(&is->sampq);
+                av_log(NULL, AV_LOG_INFO, "after audio frame_queue_push");
+
 
 #if CONFIG_AVFILTER
                 if (is->audioq.serial != is->auddec.pkt_serial)
@@ -2496,6 +2519,7 @@ reload:
         if (!(af = frame_queue_peek_readable(&is->sampq)))
             return -1;
         frame_queue_next(&is->sampq);
+        av_log(NULL, AV_LOG_INFO, "after audio frame_queue_next");
     } while (af->serial != is->audioq.serial);
 
     data_size = av_samples_get_buffer_size(NULL, af->frame->channels,
@@ -3587,6 +3611,11 @@ static int read_thread(void *arg)
                 (double)(ffp->start_time != AV_NOPTS_VALUE ? ffp->start_time : 0) / 1000000
                 <= ((double)ffp->duration / 1000000);
         if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {
+        
+            static int i = 0;
+            if (i++ %10 == 0) {
+                av_log(NULL, AV_LOG_DEBUG, "read audio pkt: %lld. put queue", pkt_ts);
+            }
             packet_queue_put(&is->audioq, pkt);
         } else if (pkt->stream_index == is->video_stream && pkt_in_play_range
                    && !(is->video_st && (is->video_st->disposition & AV_DISPOSITION_ATTACHED_PIC))) {
