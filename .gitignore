@@ -41,3 +41,9 @@ xcuserdata
 xcshareddata
 *.xccheckout
 
+gradle/wrapper/gradle-wrapper.jar
+gradle/wrapper/gradle-wrapper.properties
+build.gradle
+gradlew
+gradlew.bat
+ijkplayer-0.8.8.iml
