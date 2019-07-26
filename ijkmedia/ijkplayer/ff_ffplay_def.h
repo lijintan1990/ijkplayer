@@ -656,7 +656,7 @@ typedef struct FFPlayer {
     int sync_av_start;
 
     MessageQueue msg_queue;
-
+	//缓冲进度条，他是当前播放的真是数据时间戳+已经缓冲的max(vPts， aPts)的大小
     int64_t playable_duration_ms;
 
     int packet_buffering;
