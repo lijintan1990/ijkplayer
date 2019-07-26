@@ -986,7 +986,7 @@ static void message_loop_n(JNIEnv *env, IjkMediaPlayer *mp)
             post_event(env, weak_thiz, MEDIA_SEEK_COMPLETE, 0, 0);
             break;
         case FFP_MSG_ACCURATE_SEEK_COMPLETE:
-            MPTRACE("FFP_MSG_ACCURATE_SEEK_COMPLETE:\n");
+            MPTRACE("xx FFP_MSG_ACCURATE_SEEK_COMPLETE:\n");
             post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_MEDIA_ACCURATE_SEEK_COMPLETE, msg.arg1);
             break;
         case FFP_MSG_PLAYBACK_STATE_CHANGED:
@@ -1012,7 +1012,7 @@ static void message_loop_n(JNIEnv *env, IjkMediaPlayer *mp)
             }
             break;
         case FFP_MSG_VIDEO_SEEK_RENDERING_START:
-            MPTRACE("FFP_MSG_VIDEO_SEEK_RENDERING_START:\n");
+            MPTRACE("FFP_MSG_VIDEO_SEEK_RENDERING_START:%d\n", msg.arg1);
             post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_VIDEO_SEEK_RENDERING_START, msg.arg1);
             break;
         case FFP_MSG_AUDIO_SEEK_RENDERING_START:
