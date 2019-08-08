@@ -336,20 +336,20 @@ static int packet_queue_get(PacketQueue *q, AVPacket *pkt, int block, int *seria
 static int packet_queue_get_or_buffering(FFPlayer *ffp, PacketQueue *q, AVPacket *pkt, int *serial, int *finished)
 {
     assert(finished);
-	//ÉèÖÃÁË»º³å£¬Ö±½ÓÈ¥È¡Êý¾Ý£¬Ö±µ½È¡µ½Êý¾ÝÎ»ÎªÖ¹
+	//ï¿½ï¿½ï¿½ï¿½ï¿½Ë»ï¿½ï¿½å£¬Ö±ï¿½ï¿½È¥È¡ï¿½ï¿½ï¿½Ý£ï¿½Ö±ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ÎªÖ¹
     if (!ffp->packet_buffering)
         return packet_queue_get(q, pkt, 1, serial);
 
     while (1) {
-		// Ã»ÓÐÉèÖÃ£¬¾ÍÖ±½ÓÈ¡£¬Ã»ÓÐÊý¾Ý¾ÍÖ±½Ó·µ»Ø
+		// Ã»ï¿½ï¿½ï¿½ï¿½ï¿½Ã£ï¿½ï¿½ï¿½Ö±ï¿½ï¿½È¡ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½Ý¾ï¿½Ö±ï¿½Ó·ï¿½ï¿½ï¿½
         int new_packet = packet_queue_get(q, pkt, 0, serial);
         if (new_packet < 0)
             return -1;
         else if (new_packet == 0) {
-			// Ã»ÓÐÈ¡µ½£¬Í¨ÖªÉÏ²ã»º³å×´Ì¬
+			// Ã»ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Í¨Öªï¿½Ï²ã»ºï¿½ï¿½×´Ì¬
             if (q->is_buffer_indicator && !*finished)
                 ffp_toggle_buffering(ffp, 1);
-			//¼ÌÐøÈ¡Êý¾Ý£¬Ö±µ½È¡µ½ÎªÖ¹
+			//ï¿½ï¿½ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ý£ï¿½Ö±ï¿½ï¿½È¡ï¿½ï¿½ÎªÖ¹
             new_packet = packet_queue_get(q, pkt, 1, serial);
             if (new_packet < 0)
                 return -1;
@@ -648,8 +648,8 @@ static int decoder_decode_frame(FFPlayer *ffp, Decoder *d, AVFrame *frame, AVSub
                     ret = got_frame ? 0 : (pkt.data ? AVERROR(EAGAIN) : AVERROR_EOF);
                 }
             } else {
-                if (pkt.stream_index == ffp->is->audio_stream )
-                    av_log(d->avctx, AV_LOG_INFO, "pkt index:%d. tid:%d", pkt.stream_index, gettid()); 
+                //if (pkt.stream_index == ffp->is->audio_stream )
+                    //av_log(d->avctx, AV_LOG_INFO, "pkt index:%d. tid:%d", pkt.stream_index, gettid()); 
                 if (avcodec_send_packet(d->avctx, &pkt) == AVERROR(EAGAIN)) {
                     av_log(d->avctx, AV_LOG_ERROR, "Receive_frame and send_packet both returned EAGAIN, which is an API violation.\n");
                     d->packet_pending = 1;
@@ -735,7 +735,7 @@ static Frame *frame_queue_peek_writable(FrameQueue *f)
     SDL_LockMutex(f->mutex);
     while (f->size >= f->max_size &&
            !f->pktq->abort_request) {
-            av_log(NULL, AV_LOG_INFO, "frame queue wait. pid:%d size:%d max_size:%d", gettid(), f->size, f->max_size);
+            //av_log(NULL, AV_LOG_INFO, "frame queue wait. pid:%d size:%d max_size:%d", gettid(), f->size, f->max_size);
         SDL_CondWait(f->cond, f->mutex);
     }
     SDL_UnlockMutex(f->mutex);
@@ -917,7 +917,7 @@ static void video_image_display2(FFPlayer *ffp)
                 SDL_Delay(20);
             }
         }
-        av_log(NULL, AV_LOG_INFO, "opengl es play pts:%lf", vp->pts);
+        //av_log(NULL, AV_LOG_INFO, "opengl es play pts:%lf", vp->pts);
         SDL_VoutDisplayYUVOverlay(ffp->vout, vp->bmp);
         ffp->stat.vfps = SDL_SpeedSamplerAdd(&ffp->vfps_sampler, FFP_SHOW_VFPS_FFPLAY, "vfps[ffplay]");
         if (!ffp->first_video_frame_rendered) {
@@ -1320,7 +1320,7 @@ static void video_refresh(FFPlayer *opaque, double *remaining_time)
     double time;
 
     Frame *sp, *sp2;
-    av_log(NULL, AV_LOG_INFO, "video refresh");
+    //av_log(NULL, AV_LOG_INFO, "video refresh");
 
     if (!is->paused && get_master_sync_type(is) == AV_SYNC_EXTERNAL_CLOCK && is->realtime)
         check_external_clock_speed(is);
@@ -2023,11 +2023,11 @@ static int audio_thread(void *arg)
 
     do {
         ffp_audio_statistic_l(ffp);
-        av_log(NULL, AV_LOG_INFO, "before decode audio frame, tid:%d", gettid());
+        //av_log(NULL, AV_LOG_INFO, "before decode audio frame, tid:%d", gettid());
         if ((got_frame = decoder_decode_frame(ffp, &is->auddec, frame, NULL)) < 0)
             goto the_end;
-        av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lf is->audio_accurate_seek_req:%d is->seek_req:%d", 
-                                frame->pts, is->audio_accurate_seek_req, is->seek_req);
+        //av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lf is->audio_accurate_seek_req:%d is->seek_req:%d", 
+        //                        frame->pts, is->audio_accurate_seek_req, is->seek_req);
         if (got_frame) {
                 tb = (AVRational){1, frame->sample_rate};
                 if (ffp->enable_accurate_seek && is->audio_accurate_seek_req && !is->seek_req) {
@@ -2167,21 +2167,20 @@ static int audio_thread(void *arg)
             while ((ret = av_buffersink_get_frame_flags(is->out_audio_filter, frame, 0)) >= 0) {
                 tb = av_buffersink_get_time_base(is->out_audio_filter);
 #endif
-                av_log(NULL, AV_LOG_INFO, "audio before frame_queue_peek_writable tid:%d", gettid());
+                //av_log(NULL, AV_LOG_INFO, "audio before frame_queue_peek_writable tid:%d", gettid());
                 if (!(af = frame_queue_peek_writable(&is->sampq))) {
                     goto the_end;
-                    av_log(NULL, AV_LOG_INFO, "audio after frame_queue_peek_writable");
                 }
-                av_log(NULL, AV_LOG_INFO, "audio after frame_queue_peek_writable");
+                //av_log(NULL, AV_LOG_INFO, "audio after frame_queue_peek_writable");
                 af->pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
                 af->pos = frame->pkt_pos;
                 af->serial = is->auddec.pkt_serial;
                 af->duration = av_q2d((AVRational){frame->nb_samples, frame->sample_rate});
 
                 av_frame_move_ref(af->frame, frame);
-                av_log(NULL, AV_LOG_INFO, "before audio frame_queue_pus");
+                //av_log(NULL, AV_LOG_INFO, "before audio frame_queue_pus");
                 frame_queue_push(&is->sampq);
-                av_log(NULL, AV_LOG_INFO, "after audio frame_queue_pus");
+                //av_log(NULL, AV_LOG_INFO, "after audio frame_queue_pus");
 
 
 #if CONFIG_AVFILTER
@@ -2357,7 +2356,7 @@ static int ffplay_video_thread(void *arg)
 #endif
             duration = (frame_rate.num && frame_rate.den ? av_q2d((AVRational){frame_rate.den, frame_rate.num}) : 0);
             pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
-            av_log(NULL, AV_LOG_INFO, "video frame->pts:%lld pts:%lf", frame->pts, pts);
+            //av_log(NULL, AV_LOG_INFO, "video frame->pts:%lld pts:%lf", frame->pts, pts);
             ret = queue_picture(ffp, frame, pts, duration, frame->pkt_pos, is->viddec.pkt_serial);
             av_frame_unref(frame);
 #if CONFIG_AVFILTER
@@ -2537,7 +2536,7 @@ reload:
         if (!(af = frame_queue_peek_readable(&is->sampq)))
             return -1;
         frame_queue_next(&is->sampq);
-        av_log(NULL, AV_LOG_INFO, "after audio frame_queue_next");
+        //av_log(NULL, AV_LOG_INFO, "after audio frame_queue_next");
     } while (af->serial != is->audioq.serial);
 
     data_size = av_samples_get_buffer_size(NULL, af->frame->channels,
@@ -2590,7 +2589,7 @@ reload:
     }
 
     if (is->swr_ctx) {
-        av_log(NULL, AV_LOG_INFO, "audio convert");
+        //av_log(NULL, AV_LOG_INFO, "audio convert");
         const uint8_t **in = (const uint8_t **)af->frame->extended_data;
         uint8_t **out = &is->audio_buf1;
         int out_count = (int)((int64_t)wanted_nb_samples * is->audio_tgt.freq / af->frame->sample_rate + 256);
@@ -2622,8 +2621,7 @@ reload:
                 swr_free(&is->swr_ctx);
         }
         is->audio_buf = is->audio_buf1;
-        av_log(NULL, AV_LOG_INFO, "audio target fmt:%d channels:%d channal_layout:%d", 
-                    is->audio_tgt.fmt, is->audio_tgt.channels, is->audio_tgt.channel_layout);
+        //av_log(NULL, AV_LOG_INFO, "audio target fmt:%d channels:%d channal_layout:%d", is->audio_tgt.fmt, is->audio_tgt.channels, is->audio_tgt.channel_layout);
         int bytes_per_sample = av_get_bytes_per_sample(is->audio_tgt.fmt);
         resampled_data_size = len2 * is->audio_tgt.channels * bytes_per_sample;
 #if defined(__ANDROID__)
@@ -3397,7 +3395,7 @@ static int read_thread(void *arg)
 #ifdef FFP_MERGE
         if (is->paused != is->last_paused) {
             is->last_paused = is->paused;
-			//Èç¹ûÔÝÍ££¬ÍøÂçÏÂÔØÒ²»á±»ÔÝÍ££¬ÎªÁË¶àÂ·Í¬²½£¬ÕâÀï¹À¼ÆÐèÒªÐÞ¸Ä
+			//ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½á±»ï¿½ï¿½Í£ï¿½ï¿½Îªï¿½Ë¶ï¿½Â·Í¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Þ¸ï¿½
             if (is->paused)
                 is->read_pause_return = av_read_pause(ic);
             else
@@ -3646,9 +3644,9 @@ static int read_thread(void *arg)
         } else if (pkt->stream_index == is->video_stream && pkt_in_play_range
                    && !(is->video_st && (is->video_st->disposition & AV_DISPOSITION_ATTACHED_PIC))) {
             static int k = 0;
-            av_log(NULL, AV_LOG_INFO, "video pkt num:%d", k++);
+            //av_log(NULL, AV_LOG_INFO, "video pkt num:%d", k++);
             if(pkt->flags & AV_PKT_FLAG_KEY) {
-                av_log(NULL, AV_LOG_INFO, "key frame");
+                //av_log(NULL, AV_LOG_INFO, "key frame");
             }
             
             packet_queue_put(&is->videoq, pkt);
@@ -3669,11 +3667,9 @@ static int read_thread(void *arg)
         if (ffp->packet_buffering) {
             io_tick_counter = SDL_GetTickHR();
             if ((!ffp->first_video_frame_rendered && is->video_st) || (!ffp->first_audio_frame_rendered && is->audio_st)) {
-				// Ã¿FAST_BUFFERING_CHECK_PER_MILLISECOND¼ì²âÒ»´Î»º³å×´Ì¬
                 if (abs((int)(io_tick_counter - prev_io_tick_counter)) > FAST_BUFFERING_CHECK_PER_MILLISECONDS) {
                     prev_io_tick_counter = io_tick_counter;
                     ffp->dcc.current_high_water_mark_in_ms = ffp->dcc.first_high_water_mark_in_ms;
-					//ÉÏ±¨»º³åÏà¹ØÐÅÏ¢
                     ffp_check_buffering_l(ffp);
                 }
             } else {
@@ -4750,7 +4746,7 @@ void ffp_check_buffering_l(FFPlayer *ffp)
         if (cached_duration_in_ms >= 0) {
             buf_time_position = ffp_get_current_position_l(ffp) + cached_duration_in_ms;
             ffp->playable_duration_ms = buf_time_position;
-			//»º³åµÄÊ±¼ä
+			//ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
             buf_time_percent = (int)av_rescale(cached_duration_in_ms, 1005, hwm_in_ms * 10);
 #ifdef FFP_SHOW_DEMUX_CACHE
             av_log(ffp, AV_LOG_DEBUG, "time cache=%%%d (%d/%d)\n", buf_time_percent, cached_duration_in_ms, hwm_in_ms);
