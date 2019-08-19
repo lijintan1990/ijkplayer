@@ -157,9 +157,13 @@ static int func_unlock(SDL_VoutOverlay *overlay)
     return SDL_UnlockMutex(opaque->mutex);
 }
 
-static int func_fill_frame(SDL_VoutOverlay *overlay, const AVFrame *frame)
+// fix by ljt. 2019.8.13
+static int func_fill_frame(SDL_VoutOverlay *overlay, const AVFrame *frame, FrameSticker *stickers)
 {
     assert(overlay);
+    // add by ljt
+    overlay->stickers = stickers;
+    // add end
     SDL_VoutOverlay_Opaque *opaque = overlay->opaque;
     AVFrame swscale_dst_pic = { { 0 } };
 
@@ -262,7 +266,7 @@ static int func_fill_frame(SDL_VoutOverlay *overlay, const AVFrame *frame)
             ALOGE("sws_getCachedContext failed");
             return -1;
         }
-
+        ALOGD("video sws_scale");
         sws_scale(opaque->img_convert_ctx, (const uint8_t**) frame->data, frame->linesize,
                   0, frame->height, swscale_dst_pic.data, swscale_dst_pic.linesize);
 
@@ -283,6 +287,7 @@ static SDL_Class g_vout_overlay_ffmpeg_class = {
 #ifndef __clang_analyzer__
 SDL_VoutOverlay *SDL_VoutFFmpeg_CreateOverlay(int width, int height, int frame_format, SDL_Vout *display)
 {
+
     Uint32 overlay_format = display->overlay_format;
     switch (overlay_format) {
         case SDL_FCC__GLES2: {

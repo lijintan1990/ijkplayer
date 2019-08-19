@@ -53,6 +53,7 @@ void SDL_VoutFreeP(SDL_Vout **pvout)
 
 int SDL_VoutDisplayYUVOverlay(SDL_Vout *vout, SDL_VoutOverlay *overlay)
 {
+    ALOG(IJK_LOG_DEBUG, "overlay", "SDL_VoutDisplayYUVOverlay %p %p %p", vout, overlay, vout->display_overlay);
     if (vout && overlay && vout->display_overlay)
         return vout->display_overlay(vout, overlay);
 
@@ -110,10 +111,18 @@ void SDL_VoutUnrefYUVOverlay(SDL_VoutOverlay *overlay)
         overlay->unref(overlay);
 }
 
+extern bool getDetectedData(int64_t pts, FrameSticker *stickerArray, int *stickerArraySize);
 int SDL_VoutFillFrameYUVOverlay(SDL_VoutOverlay *overlay, const AVFrame *frame)
 {
     if (!overlay || !overlay->func_fill_frame)
         return -1;
 
-    return overlay->func_fill_frame(overlay, frame);
+    //add by ljt
+    FrameSticker stickArray[20];
+    memset(stickArray, 0, sizeof(stickArray));
+    int size = 20;
+    bool ret = getDetectedData(0, stickArray, size);
+    ALOGD("sticker size:%d ret:%d", size, ret);
+    // add end
+    return overlay->func_fill_frame(overlay, frame, stickArray);
 }

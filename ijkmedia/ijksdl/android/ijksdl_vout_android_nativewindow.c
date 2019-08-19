@@ -143,6 +143,8 @@ static int func_display_overlay_l(SDL_Vout *vout, SDL_VoutOverlay *overlay)
 {
     SDL_Vout_Opaque *opaque = vout->opaque;
     ANativeWindow *native_window = opaque->native_window;
+    //走了这里, mediacodec = 0. open gles
+    ALOGI("nativeWindow func_display_overlay_l");
 
     if (!native_window) {
         if (!opaque->null_native_window_warned) {
@@ -166,6 +168,7 @@ static int func_display_overlay_l(SDL_Vout *vout, SDL_VoutOverlay *overlay)
 
     switch(overlay->format) {
     case SDL_FCC__AMC: {
+        ALOGD("SDL_FCC__AMC");
         // only ANativeWindow support
         IJK_EGL_terminate(opaque->egl);
         return SDL_VoutOverlayAMediaCodec_releaseFrame_l(overlay, NULL, true);
@@ -173,6 +176,7 @@ static int func_display_overlay_l(SDL_Vout *vout, SDL_VoutOverlay *overlay)
     case SDL_FCC_RV24:
     case SDL_FCC_I420:
     case SDL_FCC_I444P10LE: {
+        ALOGD("only GLES support");
         // only GLES support
         if (opaque->egl)
             return IJK_EGL_display(opaque->egl, native_window, overlay);
@@ -182,8 +186,10 @@ static int func_display_overlay_l(SDL_Vout *vout, SDL_VoutOverlay *overlay)
     case SDL_FCC_RV16:
     case SDL_FCC_RV32: {
         // both GLES & ANativeWindow support
-        if (vout->overlay_format == SDL_FCC__GLES2 && opaque->egl)
+        ALOGD("both GLES & ANativeWindow support %d %p", vout->overlay_format == SDL_FCC__GLES2, opaque->egl);
+        if (vout->overlay_format == SDL_FCC__GLES2 && opaque->egl) {
             return IJK_EGL_display(opaque->egl, native_window, overlay);
+        }
         break;
     }
     }
@@ -208,6 +214,7 @@ static SDL_Class g_nativewindow_class = {
 SDL_Vout *SDL_VoutAndroid_CreateForANativeWindow()
 {
     SDL_Vout *vout = SDL_Vout_CreateInternal(sizeof(SDL_Vout_Opaque));
+    ALOGW("%s vout:%p", __FUNCTION__, vout);
     if (!vout)
         return NULL;
 

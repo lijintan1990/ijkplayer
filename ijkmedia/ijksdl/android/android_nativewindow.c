@@ -192,8 +192,10 @@ AndroidHalFourccDescriptor *native_window_get_desc(int fourcc_or_hal)
 {
     for (int i = 0; i < NELEM(g_hal_fcc_map); ++i) {
         AndroidHalFourccDescriptor *desc = &g_hal_fcc_map[i];
-        if (desc->fcc_or_hal == fourcc_or_hal)
+        if (desc->fcc_or_hal == fourcc_or_hal) {
+            ALOGD("format name: %s", desc->name);
             return desc;
+        }
     }
 
     return NULL;
@@ -202,7 +204,7 @@ AndroidHalFourccDescriptor *native_window_get_desc(int fourcc_or_hal)
 int SDL_Android_NativeWindow_display_l(ANativeWindow *native_window, SDL_VoutOverlay *overlay)
 {
     int retval;
-
+    ALOGD("SDL_Android_NativeWindow_display_l 1");
     if (!native_window)
         return -1;
 

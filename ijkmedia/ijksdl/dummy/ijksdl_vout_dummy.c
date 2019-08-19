@@ -54,6 +54,7 @@ static int func_display_overlay_l(SDL_Vout *vout, SDL_VoutOverlay *overlay)
 
 static int func_display_overlay(SDL_Vout *vout, SDL_VoutOverlay *overlay)
 {
+    ALOGI("ijksdl_vout_dummy func_display_overlay");
     SDL_LockMutex(vout->mutex);
     int retval = func_display_overlay_l(vout, overlay);
     SDL_UnlockMutex(vout->mutex);

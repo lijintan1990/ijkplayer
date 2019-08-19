@@ -110,7 +110,7 @@ void IJK_GLES2_Renderer_freeP(IJK_GLES2_Renderer **renderer)
 IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_base(const char *fragment_shader_source)
 {
     assert(fragment_shader_source);
-
+    ALOGI("IJK_GLES2_Renderer_create_base");
     IJK_GLES2_Renderer *renderer = (IJK_GLES2_Renderer *)calloc(1, sizeof(IJK_GLES2_Renderer));
     if (!renderer)
         goto fail;
@@ -162,6 +162,8 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create(SDL_VoutOverlay *overlay)
     IJK_GLES2_printString("Renderer", GL_RENDERER);
     IJK_GLES2_printString("Extensions", GL_EXTENSIONS);
 
+    ALOGI("IJK_GLES2_Renderer_create format:%d", overlay->format);
+
     IJK_GLES2_Renderer *renderer = NULL;
     switch (overlay->format) {
         case SDL_FCC_RV16:      renderer = IJK_GLES2_Renderer_create_rgb565(); break;
@@ -206,6 +208,7 @@ GLboolean IJK_GLES2_Renderer_setupGLES()
     glCullFace(GL_BACK);                        IJK_GLES2_checkError_TRACE("glCullFace");
     glDisable(GL_DEPTH_TEST);
 
+    ALOGI("IJK_GLES2_Renderer_setupGLES");
     return GL_TRUE;
 }
 
@@ -346,6 +349,7 @@ GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer)
     if (!renderer)
         return GL_FALSE;
 
+    ALOGI("IJK_GLES2_Renderer_use");
     assert(renderer->func_use);
     if (!renderer->func_use(renderer))
         return GL_FALSE;
@@ -368,6 +372,7 @@ GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer)
  */
 GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay)
 {
+    ALOGI("IJK_GLES2_Renderer_renderOverlay");
     if (!renderer || !renderer->func_uploadTexture)
         return GL_FALSE;
 
@@ -406,6 +411,9 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
          buffer_width > visible_width &&
          buffer_width != renderer->buffer_width &&
          visible_width != renderer->visible_width)){
+            
+        ALOGI("buffer_width:%d visible_width:%d rederer->buffer_width：%d rederder->visible_width:%d", 
+                buffer_width, visible_width, renderer->buffer_width, renderer->visible_width);
 
         renderer->vertices_changed = 0;
 
@@ -424,6 +432,6 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
     }
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);      IJK_GLES2_checkError_TRACE("glDrawArrays");
-
+    
     return GL_TRUE;
 }

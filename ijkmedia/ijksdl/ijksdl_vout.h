@@ -31,6 +31,22 @@
 #include "ijksdl_video.h"
 #include "ffmpeg/ijksdl_inc_ffmpeg.h"
 
+/**
+ * add by ljt
+ * 贴纸相关信息,是opencv坐标系，原点在右上角
+ */
+typedef struct FrameSticker {
+    char filename[128];
+    int viewWidth;
+    int viewHeight;
+    int rightTopX;
+    int rightTopY;
+    //纹理ID
+    uint32_t texId;
+    //需要在GL线程调用，获取纹理ID
+    int (*getTextureId)(char *fileName);
+} FrameSticker;
+
 typedef struct SDL_VoutOverlay_Opaque SDL_VoutOverlay_Opaque;
 typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 struct SDL_VoutOverlay {
@@ -49,12 +65,15 @@ struct SDL_VoutOverlay {
     SDL_Class               *opaque_class;
     SDL_VoutOverlay_Opaque  *opaque;
 
+    // add by ljt
+    FrameSticker            *stickers;
+
     void    (*free_l)(SDL_VoutOverlay *overlay);
     int     (*lock)(SDL_VoutOverlay *overlay);
     int     (*unlock)(SDL_VoutOverlay *overlay);
     void    (*unref)(SDL_VoutOverlay *overlay);
 
-    int     (*func_fill_frame)(SDL_VoutOverlay *overlay, const AVFrame *frame);
+    int     (*func_fill_frame)(SDL_VoutOverlay *overlay, const AVFrame *frame, FrameSticker *stickers);
 };
 
 typedef struct SDL_Vout_Opaque SDL_Vout_Opaque;

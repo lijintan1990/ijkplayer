@@ -917,7 +917,7 @@ static void video_image_display2(FFPlayer *ffp)
                 SDL_Delay(20);
             }
         }
-        //av_log(NULL, AV_LOG_INFO, "opengl es play pts:%lf", vp->pts);
+        av_log(NULL, AV_LOG_INFO, "opengl es play pts:%lf", vp->pts);
         SDL_VoutDisplayYUVOverlay(ffp->vout, vp->bmp);
         ffp->stat.vfps = SDL_SpeedSamplerAdd(&ffp->vfps_sampler, FFP_SHOW_VFPS_FFPLAY, "vfps[ffplay]");
         if (!ffp->first_video_frame_rendered) {
