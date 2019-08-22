@@ -75,6 +75,12 @@ typedef struct IJK_GLES2_Renderer
     int     frame_sar_den;
 
     GLsizei last_buffer_width;
+
+    // add by ljt
+    uint64_t ijkFilterObj;
+    bool     hasFilter;
+    GLuint   frame_textures[1];
+    GLuint   frame_buffers[1];
 } IJK_GLES2_Renderer;
 
 typedef struct IJK_GLES_Matrix

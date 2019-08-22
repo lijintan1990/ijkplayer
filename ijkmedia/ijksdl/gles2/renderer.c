@@ -367,6 +367,11 @@ GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer)
     return GL_TRUE;
 }
 
+extern  bool hasFilter();
+extern  uint64_t filterInit(int width,int height);
+extern  void drawFrame(int64_t filter, int textureId, int64_t pts);
+extern  void filterRelease(int64_t filter);
+
 /*
  * Per-Frame routine
  */
@@ -375,6 +380,56 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
     ALOGI("IJK_GLES2_Renderer_renderOverlay");
     if (!renderer || !renderer->func_uploadTexture)
         return GL_FALSE;
+
+    if (!renderer->hasFilter) 
+        renderer->hasFilter = hasFilter();
+    // add by ljt
+    if (renderer->hasFilter && renderer->frame_textures[0] == 0) {
+        //调用Java传递进来的Filter的onCreated方法及onSizeChanged方法
+        renderer->ijkFilterObj = filterInit(renderer->frame_width, renderer->frame_height);
+        
+        //创建一个texture，用来接受将不同格式的视频帧数据，渲染成一个纹理
+        glGenTextures(1,renderer->frame_textures);
+        glBindTexture(GL_TEXTURE_2D,renderer->frame_textures[0]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, renderer->frame_width, renderer->frame_height, 0, GL_RGBA,GL_UNSIGNED_BYTE, NULL); 
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        //创建framebuffer来挂载纹理，以渲染视频帧
+        glGenFramebuffers(1, renderer->frame_buffers);
+        glBindFramebuffer(GL_FRAMEBUFFER, renderer->frame_buffers[0]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderer->frame_textures[0], 0);
+        ALOGD("filter: frame_textures[0]:%u renderer:%p", renderer->frame_buffers[0], renderer);
+        int r;
+        if ((r = glCheckFramebufferStatus(GL_FRAMEBUFFER)) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            ALOGE("Error in Framebuffer 0x%x", r);
+        }else{
+            ALOGE("glCheckFramebufferStatus 0x%x", r);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        
+
+        ALOGE("filter: create frame_buffers and textures %d,%d", renderer->frame_width, renderer->frame_height);
+    }
+
+    if(renderer->hasFilter && renderer->frame_buffers[0]) {
+        GLint bindFrame;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &bindFrame);
+        ALOGE("filter: default frame binding %d", bindFrame);
+        glBindFramebuffer(GL_FRAMEBUFFER, renderer->frame_buffers[0]);
+        // glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,renderer->frame_textures[0],0);
+        /* 这句一定要加上，否则无法增加了Filter之后，启用了其他GLProgram，无法渲染原始视频到Texture上去了 */
+        IJK_GLES2_Renderer_use(renderer);
+
+        // glDisable(GL_DEPTH_TEST);
+        // glEnable(GL_BLEND);
+        // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    }
+    // add end
 
     glClear(GL_COLOR_BUFFER_BIT);               IJK_GLES2_checkError_TRACE("glClear");
 
@@ -411,7 +466,16 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
          buffer_width > visible_width &&
          buffer_width != renderer->buffer_width &&
          visible_width != renderer->visible_width)){
+        
+        // add by ljt
+        //这里后面需要做处理，比如他全屏播放的时候就会跑这里
+        ALOGI("ijk size change");
+        if(renderer->hasFilter && renderer->frame_buffers[0]) {
+
             
+        }
+        // add end
+
         ALOGI("buffer_width:%d visible_width:%d rederer->buffer_width：%d rederder->visible_width:%d", 
                 buffer_width, visible_width, renderer->buffer_width, renderer->visible_width);
 
@@ -432,6 +496,16 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
     }
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);      IJK_GLES2_checkError_TRACE("glDrawArrays");
-    
+
+    // ALOGD("renderer->frame_buffers[0]:%u && renderer->ijkFilterObj:%llu renderer->hasFilter:%d", 
+    //     renderer->frame_buffers[0], renderer->ijkFilterObj, renderer->hasFilter);
+    // add by ljt
+    if(renderer->hasFilter && renderer->frame_buffers[0] && renderer->ijkFilterObj) {
+        glBindFramebuffer(GL_FRAMEBUFFER,0);
+        drawFrame(renderer->ijkFilterObj, renderer->frame_textures[0], overlay->pts);
+    } else {
+        glBindFramebuffer(GL_FRAMEBUFFER,0);
+    }
+    // add end
     return GL_TRUE;
 }

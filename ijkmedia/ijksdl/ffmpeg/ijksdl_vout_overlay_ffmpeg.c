@@ -157,13 +157,9 @@ static int func_unlock(SDL_VoutOverlay *overlay)
     return SDL_UnlockMutex(opaque->mutex);
 }
 
-// fix by ljt. 2019.8.13
-static int func_fill_frame(SDL_VoutOverlay *overlay, const AVFrame *frame, FrameSticker *stickers)
+static int func_fill_frame(SDL_VoutOverlay *overlay, const AVFrame *frame)
 {
     assert(overlay);
-    // add by ljt
-    overlay->stickers = stickers;
-    // add end
     SDL_VoutOverlay_Opaque *opaque = overlay->opaque;
     AVFrame swscale_dst_pic = { { 0 } };
 
@@ -211,6 +207,10 @@ static int func_fill_frame(SDL_VoutOverlay *overlay, const AVFrame *frame, Frame
             return -1;
     }
 
+    // add by ljt
+    overlay->pts = frame->pts;
+    //ALOGD("video frame pts:%lld", frame->pts);
+    // add end
 
     // setup frame
     if (use_linked_frame) {

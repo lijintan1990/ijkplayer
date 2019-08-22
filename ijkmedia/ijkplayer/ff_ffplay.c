@@ -1680,6 +1680,11 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
         // sws_getCachedContext(...);
 #endif
 #endif
+        // add by ljt
+        AVRational base_rational = {1, AV_TIME_BASE};
+	    src_frame->pts = av_rescale_q(src_frame->pts, is->video_st->time_base, base_rational);
+        // add end
+
         // FIXME: set swscale options
         if (SDL_VoutFillFrameYUVOverlay(vp->bmp, src_frame) < 0) {
             av_log(NULL, AV_LOG_FATAL, "Cannot initialize the conversion context\n");

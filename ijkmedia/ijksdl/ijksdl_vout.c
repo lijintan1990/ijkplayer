@@ -111,18 +111,10 @@ void SDL_VoutUnrefYUVOverlay(SDL_VoutOverlay *overlay)
         overlay->unref(overlay);
 }
 
-extern bool getDetectedData(int64_t pts, FrameSticker *stickerArray, int *stickerArraySize);
 int SDL_VoutFillFrameYUVOverlay(SDL_VoutOverlay *overlay, const AVFrame *frame)
 {
     if (!overlay || !overlay->func_fill_frame)
         return -1;
 
-    //add by ljt
-    FrameSticker stickArray[20];
-    memset(stickArray, 0, sizeof(stickArray));
-    int size = 20;
-    bool ret = getDetectedData(0, stickArray, size);
-    ALOGD("sticker size:%d ret:%d", size, ret);
-    // add end
-    return overlay->func_fill_frame(overlay, frame, stickArray);
+    return overlay->func_fill_frame(overlay, frame);
 }
