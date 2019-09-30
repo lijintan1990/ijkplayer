@@ -83,7 +83,7 @@
 #define MAX_RETRY_CONVERT_IMAGE                 (3)
 
 #define MAX_QUEUE_SIZE (15 * 1024 * 1024)
-#define MAX_ACCURATE_SEEK_TIMEOUT (5000)
+#define MAX_ACCURATE_SEEK_TIMEOUT (3000)
 #ifdef FFP_MERGE
 #define MIN_FRAMES 25
 #endif
@@ -656,7 +656,7 @@ typedef struct FFPlayer {
     int sync_av_start;
 
     MessageQueue msg_queue;
-	//»º³å½ø¶ÈÌõ£¬ËûÊÇµ±Ç°²¥·ÅµÄÕæÊÇÊý¾ÝÊ±¼ä´Á+ÒÑ¾­»º³åµÄmax(vPts£¬ aPts)µÄ´óÐ¡
+	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Çµï¿½Ç°ï¿½ï¿½ï¿½Åµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½+ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½max(vPtsï¿½ï¿½ aPts)ï¿½Ä´ï¿½Ð¡
     int64_t playable_duration_ms;
 
     int packet_buffering;

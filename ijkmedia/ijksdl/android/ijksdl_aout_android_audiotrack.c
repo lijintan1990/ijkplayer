@@ -90,9 +90,12 @@ static int aout_thread_n(JNIEnv *env, SDL_Aout *aout)
         SDL_LockMutex(opaque->wakeup_mutex);
         if (!opaque->abort_request && opaque->pause_on) {
             SDL_Android_AudioTrack_pause(env, atrack);
+            //这里死等导致pause状态下无法精准seek
             while (!opaque->abort_request && opaque->pause_on) {
                 SDL_CondWaitTimeout(opaque->wakeup_cond, opaque->wakeup_mutex, 1000);
+                //ALOGD("audio play thread lock 000, pause_on:%d", opaque->pause_on);
             }
+
             if (!opaque->abort_request && !opaque->pause_on) {
                 if (opaque->need_flush) {
                     opaque->need_flush = 0;
@@ -105,6 +108,9 @@ static int aout_thread_n(JNIEnv *env, SDL_Aout *aout)
             opaque->need_flush = 0;
             SDL_Android_AudioTrack_flush(env, atrack);
         }
+
+        //ALOGD("audio play thread lock 111");
+
         if (opaque->need_set_volume) {
             opaque->need_set_volume = 0;
             SDL_Android_AudioTrack_set_volume(env, atrack, opaque->left_volume, opaque->right_volume);

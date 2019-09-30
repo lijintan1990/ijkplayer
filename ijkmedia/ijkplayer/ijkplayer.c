@@ -492,7 +492,7 @@ static int ijkmp_pause_l(IjkMediaPlayer *mp)
 
     MP_RET_IF_FAILED(ikjmp_chkst_pause_l(mp->mp_state));
 
-    //ffp_remove_msg(mp->ffplayer, FFP_REQ_START);
+    ffp_remove_msg(mp->ffplayer, FFP_REQ_START);
     ffp_remove_msg(mp->ffplayer, FFP_REQ_PAUSE);
     ffp_notify_msg1(mp->ffplayer, FFP_REQ_PAUSE);
 

@@ -1211,6 +1211,7 @@ static void stream_toggle_pause_l(FFPlayer *ffp, int pause_on)
         is->paused = is->vidclk.paused = is->extclk.paused = pause_on;
     } else {
         is->paused = is->audclk.paused = is->vidclk.paused = is->extclk.paused = pause_on;
+        av_log(NULL, AV_LOG_DEBUG, "pase_on:%d", pause_on);
         SDL_AoutPauseAudio(ffp->aout, pause_on);
     }
 }
@@ -1532,6 +1533,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
     int64_t deviation2 = 0;
     int64_t deviation3 = 0;
 
+    av_log(NULL, AV_LOG_DEBUG, "video queue_picture pts:%lf", pts);
     if (ffp->enable_accurate_seek && is->video_accurate_seek_req && !is->seek_req) {
         if (!isnan(pts)) {
             video_seek_pos = is->seek_pos;
@@ -1549,7 +1551,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                 }
                 is->drop_vframe_count++;
 
-                //:fix 修改，不用让他和音频进行对比，直接和seek时间进行比较，会有音频缓存的问题
+                //这部分代码需要改动
                 // while ( is->audio_accurate_seek_req && !is->abort_request) {
                 //     int64_t apts = is->accurate_seek_aframe_pts ;
                 //     //音频和视频的时间差
@@ -1570,7 +1572,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                 // }
 
                 if ((now - is->accurate_seek_start_time) <= ffp->accurate_seek_timeout) {
-                    av_log(NULL, AV_LOG_INFO, "drop video frame pts:%lld width:%d", is->accurate_seek_vframe_pts, src_frame->width);
+                    //av_log(NULL, AV_LOG_INFO, "drop video frame pts:%lld width:%d", is->accurate_seek_vframe_pts, src_frame->width);
                     return 1;  // drop some old frame when do accurate seek
                 } else {
                     av_log(NULL, AV_LOG_WARNING, "video accurate_seek is error, is->drop_vframe_count=%d, now = %lld, pts = %lf seek_timeout:%d\n", is->drop_vframe_count, now, pts, ffp->accurate_seek_timeout);
@@ -1582,25 +1584,19 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                     is->drop_vframe_count       = 0;
                     SDL_LockMutex(is->accurate_seek_mutex);
                     is->video_accurate_seek_req = 0;
-                    //add by ljt
-                    //is->audio_accurate_seek_req = 0;
-                    // add end
+                    is->audio_accurate_seek_req = 0;
                     SDL_CondSignal(is->audio_accurate_seek_cond);
-                    if (video_seek_pos == is->seek_pos && is->audio_accurate_seek_req && !is->abort_request) {
-                    // fix by ljt
+                    // if (video_seek_pos == is->seek_pos && is->audio_accurate_seek_req && !is->abort_request) {
                     //     av_log(NULL, AV_LOG_DEBUG, "before seek wait timeout");
                     //     SDL_CondWaitTimeout(is->video_accurate_seek_cond, is->accurate_seek_mutex, ffp->accurate_seek_timeout);
                     //     av_log(NULL, AV_LOG_DEBUG, "after seek wait timeout");
-                    // } else {
-                            av_log(NULL, AV_LOG_INFO, "FFP_MSG_ACCURATE_SEEK_COMPLETE pts:%d", is->accurate_seek_vframe_pts/1000);
-                            ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, (int)(pts * 1000));
-                        //}
-                    }
-                    if (video_seek_pos != is->seek_pos && !is->abort_request) {
-                        is->video_accurate_seek_req = 1;
-                        SDL_UnlockMutex(is->accurate_seek_mutex);
-                        return 1;
-                    }
+                    // }
+                    ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, (int)(pts * 1000));
+                    // if (video_seek_pos != is->seek_pos && !is->abort_request) {
+                    //     is->video_accurate_seek_req = 1;
+                    //     SDL_UnlockMutex(is->accurate_seek_mutex);
+                    //     return 1;
+                    // }
 
                     SDL_UnlockMutex(is->accurate_seek_mutex);
                 }
@@ -2028,107 +2024,115 @@ static int audio_thread(void *arg)
 
     do {
         ffp_audio_statistic_l(ffp);
-        //av_log(NULL, AV_LOG_INFO, "before decode audio frame, tid:%d", gettid());
+        av_log(NULL, AV_LOG_INFO, "before decode audio frame, tid:%d", gettid());
         if ((got_frame = decoder_decode_frame(ffp, &is->auddec, frame, NULL)) < 0)
             goto the_end;
-        //av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lf is->audio_accurate_seek_req:%d is->seek_req:%d", 
+        // av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lf is->audio_accurate_seek_req:%d is->seek_req:%d", 
         //                        frame->pts, is->audio_accurate_seek_req, is->seek_req);
         if (got_frame) {
                 tb = (AVRational){1, frame->sample_rate};
                 if (ffp->enable_accurate_seek && is->audio_accurate_seek_req && !is->seek_req) {
-                    // frame_pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
-                    // now = av_gettime_relative() / 1000;
-                    // av_log(NULL, AV_LOG_INFO, "audio accurate seek");
-                    // if (!isnan(frame_pts)) {
-                    //     samples_duration = (double) frame->nb_samples / frame->sample_rate;
-                    //     audio_clock = frame_pts + samples_duration;
-                    //     is->accurate_seek_aframe_pts = audio_clock * 1000 * 1000;
-                    //     av_log(NULL,AV_LOG_INFO, "accurate_seek_aframe_pts:%lld", is->accurate_seek_aframe_pts);
-                    //     audio_seek_pos = is->seek_pos;
-                    //     deviation = llabs((int64_t)(audio_clock * 1000 * 1000) - is->seek_pos);
-                    //     if ((audio_clock * 1000 * 1000 < is->seek_pos ) || deviation > MAX_DEVIATION) {
-                    //         if (is->drop_aframe_count == 0) {
-                    //             SDL_LockMutex(is->accurate_seek_mutex);
-                    //             if (is->accurate_seek_start_time <= 0 && (is->video_stream < 0 || is->video_accurate_seek_req)) {
-                    //                 is->accurate_seek_start_time = now;
-                    //                 av_log(NULL, AV_LOG_INFO, "accurete seek start time:%lld", now);
-                    //             }
-                    //             SDL_UnlockMutex(is->accurate_seek_mutex);
-                    //             av_log(NULL, AV_LOG_INFO, "audio accurate_seek start, is->seek_pos=%lld, audio_clock=%lf, is->accurate_seek_start_time = %lld\n", is->seek_pos, audio_clock, is->accurate_seek_start_time);
-                    //         }
-                    //         is->drop_aframe_count++;
-                    //         while (is->video_accurate_seek_req && !is->abort_request) {
-                    //             int64_t vpts = is->accurate_seek_vframe_pts;
-                    //             deviation2 = vpts  - audio_clock * 1000 * 1000;
-                    //             deviation3 = vpts  - is->seek_pos;
-                    //             av_log(NULL, AV_LOG_INFO, "video sub audio:%lld video sub seekPos:%lld", deviation2, deviation3);
-                    //             if (deviation2 > -100 * 1000 && deviation3 < 0) {
-                                    
-                    //                 break;
-                    //             } else {
-                                    
-                    //                 av_usleep(20 * 1000);
-                    //             }
-                    //             now = av_gettime_relative() / 1000;
-                    //             av_log(NULL, AV_LOG_INFO, "audio accurate seek sleep 20ms, update now time:%lld", now);
-                    //             if ((now - is->accurate_seek_start_time) > ffp->accurate_seek_timeout) {
-                    //                 break;
-                    //             }
-                    //         }
+                    frame_pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
+                    now = av_gettime_relative() / 1000;
+                    av_log(NULL, AV_LOG_INFO, "audio accurate seek");
+                    if (!isnan(frame_pts)) {
+                        samples_duration = (double) frame->nb_samples / frame->sample_rate;
+                        audio_clock = frame_pts + samples_duration;
+                        is->accurate_seek_aframe_pts = audio_clock * 1000 * 1000;
+                        av_log(NULL, AV_LOG_DEBUG, "samples_duration:%lf accurate_seek_aframe_pts:%lld", samples_duration, is->accurate_seek_aframe_pts);
 
-                    //         if(!is->video_accurate_seek_req && is->video_stream >= 0 && audio_clock * 1000 * 1000 > is->accurate_seek_vframe_pts) {
-                    //             av_log(NULL, AV_LOG_INFO, "accurate seek failed");
-                    //             audio_accurate_seek_fail = 1;
-                    //         } else {
-                    //             now = av_gettime_relative() / 1000;
-                    //             if ((now - is->accurate_seek_start_time) <= ffp->accurate_seek_timeout) {
-                    //                 av_frame_unref(frame);
-                    //                 continue;  // drop some old frame when do accurate seek
-                    //             } else {
-                    //                 audio_accurate_seek_fail = 1;
-                    //             }
-                    //         }
-                    //     } else {
-                    //         if (audio_seek_pos == is->seek_pos) {
-                    //             av_log(NULL, AV_LOG_INFO, "audio accurate_seek is ok, is->drop_aframe_count=%d, audio_clock = %lf\n", is->drop_aframe_count, audio_clock);
-                    //             is->drop_aframe_count       = 0;
-                    //             SDL_LockMutex(is->accurate_seek_mutex);
-                    //             is->audio_accurate_seek_req = 0;
-                    //             SDL_CondSignal(is->video_accurate_seek_cond);
-                    //             if (audio_seek_pos == is->seek_pos && is->video_accurate_seek_req && !is->abort_request) {
-                    //                 SDL_CondWaitTimeout(is->audio_accurate_seek_cond, is->accurate_seek_mutex, ffp->accurate_seek_timeout);
-                    //             } else {
-                    //                 ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, (int)(audio_clock * 1000));
-                    //             }
+                        audio_seek_pos = is->seek_pos;
+                        deviation = llabs((int64_t)(audio_clock * 1000 * 1000) - is->seek_pos);
+                        //音频还没有找到， 或者音频远大于要找的位置
+                        if ((audio_clock * 1000 * 1000 < is->seek_pos ) || deviation > MAX_DEVIATION) {
+                            if (is->drop_aframe_count == 0) {
+                                SDL_LockMutex(is->accurate_seek_mutex);
+                                if (is->accurate_seek_start_time <= 0 && (is->video_stream < 0 || is->video_accurate_seek_req)) {
+                                    is->accurate_seek_start_time = now;
+                                    av_log(NULL, AV_LOG_INFO, "accurete seek start time:%lld", now);
+                                }
+                                SDL_UnlockMutex(is->accurate_seek_mutex);
+                                av_log(NULL, AV_LOG_INFO, "audio accurate_seek start, is->seek_pos=%lld, audio_clock=%lf, is->accurate_seek_start_time = %lld\n", is->seek_pos, audio_clock, is->accurate_seek_start_time);
+                            }
+                            is->drop_aframe_count++;
+                            while (is->video_accurate_seek_req && !is->abort_request) {
+                                int64_t vpts = is->accurate_seek_vframe_pts;
+                                deviation2 = vpts  - audio_clock * 1000 * 1000;
+                                deviation3 = vpts  - is->seek_pos;
+                                av_log(NULL, AV_LOG_INFO, "video sub audio:%lld video sub seekPos:%lld", deviation2, deviation3);
+                                if (deviation2 > -100 * 1000 && deviation3 < 0) {
+                                    //视频比音频最多慢100ms,很可能视频还要快，并且视频也还没有到seek的位置,音频跳出循环，继续查找数据
+                                    break;
+                                } else {
+                                    //视频太慢了，音频处理线程睡眠等待
+                                    av_usleep(20 * 1000);
+                                }
+                                now = av_gettime_relative() / 1000;
+                                av_log(NULL, AV_LOG_INFO, "audio update now time:%lld", now);
+                                if ((now - is->accurate_seek_start_time) > ffp->accurate_seek_timeout) {
+                                    av_log(NULL, AV_LOG_WARNING, "audio accurate seek timeout");
+                                    break;
+                                }
+                            }
 
-                    //             if (audio_seek_pos != is->seek_pos && !is->abort_request) {
-                    //                 is->audio_accurate_seek_req = 1;
-                    //                 SDL_UnlockMutex(is->accurate_seek_mutex);
-                    //                 av_frame_unref(frame);
-                    //                 continue;
-                    //             }
+                            //视频查找结束了， 并且音频查找的时间比视频还大，就失败，这里似乎不严谨，应该获取视频是否查找成功才对
+                            if(!is->video_accurate_seek_req && is->video_stream >= 0 && audio_clock * 1000 * 1000 > is->accurate_seek_vframe_pts) {
+                                av_log(NULL, AV_LOG_INFO, "accurate seek failed");
+                                audio_accurate_seek_fail = 1;
+                            } else {
+                                //看看有没有超时，没有超时继续查找音频
+                                now = av_gettime_relative() / 1000;
+                                if ((now - is->accurate_seek_start_time) <= ffp->accurate_seek_timeout) {
+                                    av_frame_unref(frame);
+                                    continue;  // drop some old frame when do accurate seek
+                                } else {
+                                    audio_accurate_seek_fail = 1;
+                                }
+                            }
+                        } else {
+                            if (audio_seek_pos == is->seek_pos) {
+                                av_log(NULL, AV_LOG_INFO, "audio accurate_seek is ok, is->drop_aframe_count=%d, audio_clock = %lf\n", 
+                                        is->drop_aframe_count, audio_clock);
+                                is->drop_aframe_count       = 0;
+                                SDL_LockMutex(is->accurate_seek_mutex);
+                                is->audio_accurate_seek_req = 0;
+                                SDL_CondSignal(is->video_accurate_seek_cond);
+                                if (audio_seek_pos == is->seek_pos && is->video_accurate_seek_req && !is->abort_request) {
+                                    SDL_CondWaitTimeout(is->audio_accurate_seek_cond, is->accurate_seek_mutex, ffp->accurate_seek_timeout);
+                                } 
+                                //else { //fix by ljt
+                                    ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, (int)(audio_clock * 1000));
+                                //}
 
-                    //             SDL_UnlockMutex(is->accurate_seek_mutex);
-                    //         }
-                    //     }
-                    // } else {
-                    //     audio_accurate_seek_fail = 1;
-                    // }
-                    // if (audio_accurate_seek_fail) {
-                    //     av_log(NULL, AV_LOG_INFO, "audio accurate_seek is error, is->drop_aframe_count=%d, now = %lld, audio_clock = %lf\n", is->drop_aframe_count, now, audio_clock);
-                    //     is->drop_aframe_count       = 0;
-                    //     SDL_LockMutex(is->accurate_seek_mutex);
-                    //     is->audio_accurate_seek_req = 0;
-                    //     SDL_CondSignal(is->video_accurate_seek_cond);
-                    //     if (is->video_accurate_seek_req && !is->abort_request) {
-                    //         SDL_CondWaitTimeout(is->audio_accurate_seek_cond, is->accurate_seek_mutex, ffp->accurate_seek_timeout);
-                    //     } else {
-                    //         ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, (int)(audio_clock * 1000));
-                    //     }
-                    //     SDL_UnlockMutex(is->accurate_seek_mutex);
-                    // }
-                    // is->accurate_seek_start_time = 0;
-                    // audio_accurate_seek_fail = 0;
+                                if (audio_seek_pos != is->seek_pos && !is->abort_request) {
+                                    is->audio_accurate_seek_req = 1;
+                                    SDL_UnlockMutex(is->accurate_seek_mutex);
+                                    av_frame_unref(frame);
+                                    continue;
+                                }
+
+                                SDL_UnlockMutex(is->accurate_seek_mutex);
+                            }
+                        }
+                    } else {
+                        audio_accurate_seek_fail = 1;
+                        av_log(NULL, AV_LOG_ERROR, "audio pts isNal. accurate seek failed");
+                    }
+                    if (audio_accurate_seek_fail) {
+                        av_log(NULL, AV_LOG_INFO, "audio accurate_seek is error, is->drop_aframe_count=%d, now = %lld, audio_clock = %lf\n", is->drop_aframe_count, now, audio_clock);
+                        is->drop_aframe_count       = 0;
+                        SDL_LockMutex(is->accurate_seek_mutex);
+                        is->audio_accurate_seek_req = 0;
+                        SDL_CondSignal(is->video_accurate_seek_cond);
+                        if (is->video_accurate_seek_req && !is->abort_request) {
+                            SDL_CondWaitTimeout(is->audio_accurate_seek_cond, is->accurate_seek_mutex, ffp->accurate_seek_timeout);
+                        } else {
+                            ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, (int)(audio_clock * 1000));
+                        }
+                        SDL_UnlockMutex(is->accurate_seek_mutex);
+                    }
+                    is->accurate_seek_start_time = 0;
+                    audio_accurate_seek_fail = 0;
                 }
 
 #if CONFIG_AVFILTER
@@ -2178,14 +2182,16 @@ static int audio_thread(void *arg)
                 }
                 //av_log(NULL, AV_LOG_INFO, "audio after frame_queue_peek_writable");
                 af->pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
+                av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lf", af->pts);
+
                 af->pos = frame->pkt_pos;
                 af->serial = is->auddec.pkt_serial;
                 af->duration = av_q2d((AVRational){frame->nb_samples, frame->sample_rate});
 
                 av_frame_move_ref(af->frame, frame);
-                //av_log(NULL, AV_LOG_INFO, "before audio frame_queue_pus");
+                //av_log(NULL, AV_LOG_INFO, "before audio frame_queue_push");
                 frame_queue_push(&is->sampq);
-                //av_log(NULL, AV_LOG_INFO, "after audio frame_queue_pus");
+                //av_log(NULL, AV_LOG_INFO, "after audio frame_queue_push");
 
 
 #if CONFIG_AVFILTER
@@ -2512,8 +2518,10 @@ static int audio_decode_frame(FFPlayer *ffp)
     int translate_time = 1;
 #endif
 
-    if (is->paused || is->step)
+    if (is->paused || (is->step && !is->audio_accurate_seek_req)) {
+        av_log(NULL, AV_LOG_DEBUG, "audio decode frame. paused:%d", is->paused);
         return -1;
+    }
 
     if (ffp->sync_av_start &&                       /* sync enabled */
         is->video_st &&                             /* has video stream */
@@ -2689,6 +2697,8 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
         return;
     }
 
+    //av_log(NULL, AV_LOG_DEBUG, "sdl_audio_callback");
+
     ffp->audio_callback_time = av_gettime_relative();
 
     if (ffp->pf_playback_rate_changed) {
@@ -2709,6 +2719,12 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
     while (len > 0) {
         if (is->audio_buf_index >= is->audio_buf_size) {
            audio_size = audio_decode_frame(ffp);
+           // add by ljt
+        //    if (is->audio_accurate_seek_req) {
+        //        //这里可以这样，不会造成高cpu
+        //        continue;
+        //    }
+           // add end
            if (audio_size < 0) {
                 /* if error, just output silence */
                is->audio_buf = NULL;
@@ -2719,7 +2735,8 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
                is->audio_buf_size = audio_size;
            }
            is->audio_buf_index = 0;
-        }
+        } 
+
         if (is->auddec.pkt_serial != is->audioq.serial) {
             is->audio_buf_index = is->audio_buf_size;
             memset(stream, 0, len);
@@ -3434,8 +3451,13 @@ static int read_thread(void *arg)
                 if (is->audio_stream >= 0) {
                     packet_queue_flush(&is->audioq);
                     packet_queue_put(&is->audioq, &flush_pkt);
+                    //fix by ljt
                     // TODO: clear invaild audio data
-                    // SDL_AoutFlushAudio(ffp->aout);
+                    SDL_AoutFlushAudio(ffp->aout);
+                    packet_queue_flush(&is->audioq);
+                    packet_queue_put(&is->audioq, &flush_pkt);
+
+                    //SDL_AoutPauseAudio(ffp->aout, false);
                 }
                 if (is->subtitle_stream >= 0) {
                     packet_queue_flush(&is->subtitleq);
@@ -3641,11 +3663,16 @@ static int read_thread(void *arg)
                 <= ((double)ffp->duration / 1000000);
         if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {
         
-            // static int i = 0;
-            // if (i++ %10 == 0) {
-            //     av_log(NULL, AV_LOG_DEBUG, "read audio pkt: %lld. put queue", pkt_ts);
-            // }
-            packet_queue_put(&is->audioq, pkt);
+            static int i = 0;
+            //if (i++ %10 == 0) {
+                av_log(NULL, AV_LOG_DEBUG, "read audio pkt: %lld. put queue. av_q2d pts:%lf", pkt_ts, pkt_ts * av_q2d(ic->streams[pkt->stream_index]->time_base));
+            //}
+            int audioPts = pkt_ts * av_q2d(ic->streams[pkt->stream_index]->time_base) * 1000 * 1000;
+            if (is->audio_accurate_seek_req && is->seek_pos > audioPts) {
+                av_packet_unref(pkt);
+            } else {
+                packet_queue_put(&is->audioq, pkt);
+            }
         } else if (pkt->stream_index == is->video_stream && pkt_in_play_range
                    && !(is->video_st && (is->video_st->disposition & AV_DISPOSITION_ATTACHED_PIC))) {
             static int k = 0;

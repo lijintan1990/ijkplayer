@@ -371,6 +371,7 @@ extern  bool hasFilter();
 extern  uint64_t filterInit(int width,int height);
 extern  void drawFrame(int64_t filter, int textureId, int64_t pts);
 extern  void filterRelease(int64_t filter);
+extern  void notifyDrawStickImageUI(int64_t pts);
 
 /*
  * Per-Frame routine
@@ -506,6 +507,8 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
     } else {
         glBindFramebuffer(GL_FRAMEBUFFER,0);
     }
+
+    notifyDrawStickImageUI(overlay->pts);
     // add end
     return GL_TRUE;
 }
