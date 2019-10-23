@@ -144,7 +144,7 @@ static int func_display_overlay_l(SDL_Vout *vout, SDL_VoutOverlay *overlay)
     SDL_Vout_Opaque *opaque = vout->opaque;
     ANativeWindow *native_window = opaque->native_window;
     //走了这里, mediacodec = 0. open gles
-    ALOGI("nativeWindow func_display_overlay_l");
+    //ALOGI("nativeWindow func_display_overlay_l");
 
     if (!native_window) {
         if (!opaque->null_native_window_warned) {

@@ -304,7 +304,7 @@ static EGLBoolean IJK_EGL_prepareRenderer(IJK_EGL* egl, SDL_VoutOverlay *overlay
 static EGLBoolean IJK_EGL_display_internal(IJK_EGL* egl, EGLNativeWindowType window, SDL_VoutOverlay *overlay)
 {
     IJK_EGL_Opaque *opaque = egl->opaque;
-    ALOGI("IJK_EGL_display_internal");
+    //ALOGI("IJK_EGL_display_internal");
     if (!IJK_EGL_prepareRenderer(egl, overlay)) {
         ALOGE("[EGL] IJK_EGL_prepareRenderer failed\n");
         return EGL_FALSE;
@@ -326,7 +326,7 @@ EGLBoolean IJK_EGL_display(IJK_EGL* egl, EGLNativeWindowType window, SDL_VoutOve
     if (!egl)
         return EGL_FALSE;
 
-    ALOGI("IJK_EGL_display");
+    //ALOGI("IJK_EGL_display");
     IJK_EGL_Opaque *opaque = egl->opaque;
     if (!opaque)
         return EGL_FALSE;

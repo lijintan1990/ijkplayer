@@ -405,6 +405,7 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
     public void setDataSource(String path)
             throws IOException, IllegalArgumentException, SecurityException, IllegalStateException {
         mDataSource = path;
+        // /storage/emulated/0/Movies/QQ视频_6eb242a1e9023ee48cd1483aa22aa9eb1571628325.mp4
         _setDataSource(path, null, null);
     }
 

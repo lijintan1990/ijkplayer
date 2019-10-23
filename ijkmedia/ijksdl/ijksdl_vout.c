@@ -53,7 +53,7 @@ void SDL_VoutFreeP(SDL_Vout **pvout)
 
 int SDL_VoutDisplayYUVOverlay(SDL_Vout *vout, SDL_VoutOverlay *overlay)
 {
-    ALOG(IJK_LOG_DEBUG, "overlay", "SDL_VoutDisplayYUVOverlay %p %p %p", vout, overlay, vout->display_overlay);
+    //ALOG(IJK_LOG_DEBUG, "overlay", "SDL_VoutDisplayYUVOverlay %p %p %p", vout, overlay, vout->display_overlay);
     if (vout && overlay && vout->display_overlay)
         return vout->display_overlay(vout, overlay);
 

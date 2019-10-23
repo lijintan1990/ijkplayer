@@ -309,7 +309,7 @@ LABEL_RETURN:
 static void
 IjkMediaPlayer_seekTo(JNIEnv *env, jobject thiz, jlong msec)
 {
-    MPTRACE("%s\n", __func__);
+    //MPTRACE("%s\n", __func__);
     IjkMediaPlayer *mp = jni_get_media_player(env, thiz);
     JNI_CHECK_GOTO(mp, env, "java/lang/IllegalStateException", "mpjni: seekTo: null mp", LABEL_RETURN);
 
