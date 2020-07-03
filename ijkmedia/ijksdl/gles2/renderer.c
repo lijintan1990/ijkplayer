@@ -378,7 +378,7 @@ extern  void notifyDrawStickImageUI(int64_t pts);
  */
 GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay)
 {
-    ALOGI("IJK_GLES2_Renderer_renderOverlay");
+    // ALOGI("IJK_GLES2_Renderer_renderOverlay");
     if (!renderer || !renderer->func_uploadTexture)
         return GL_FALSE;
 

@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "ijkstl.h": "c"
+        "ijkstl.h": "c",
+        "internal.h": "c",
+        "ijksdl_fourcc.h": "c",
+        "ijksdl_gles2.h": "c"
     }
 }

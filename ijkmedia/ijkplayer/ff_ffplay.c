@@ -347,8 +347,11 @@ static int packet_queue_get_or_buffering(FFPlayer *ffp, PacketQueue *q, AVPacket
             return -1;
         else if (new_packet == 0) {
 			// û��ȡ����֪ͨ�ϲ㻺��״̬
-            if (q->is_buffer_indicator && !*finished)
+            if (q->is_buffer_indicator && !*finished) {
+                av_log(NULL, AV_LOG_DEBUG, "packet_queue_get_or_buffering");
                 ffp_toggle_buffering(ffp, 1);
+
+            }
 			//����ȡ���ݣ�ֱ��ȡ��Ϊֹ
             new_packet = packet_queue_get(q, pkt, 1, serial);
             if (new_packet < 0)
@@ -1533,7 +1536,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
     int64_t deviation2 = 0;
     int64_t deviation3 = 0;
 
-    av_log(NULL, AV_LOG_DEBUG, "video queue_picture pts:%lf", pts);
+    av_log(NULL, AV_LOG_DEBUG, "video queue_picture pts:%lf is->seek_pos:%lld", pts, is->seek_pos);
     if (ffp->enable_accurate_seek && is->video_accurate_seek_req && !is->seek_req) {
         if (!isnan(pts)) {
             video_seek_pos = is->seek_pos;
@@ -1550,7 +1553,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                     av_log(NULL, AV_LOG_INFO, "video accurate_seek start, is->seek_pos=%lld, pts=%lf, is->accurate_seek_start_time = %lld accurate_seek_vframe_pts:%lld\n", is->seek_pos, pts, is->accurate_seek_start_time, is->accurate_seek_vframe_pts);
                 }
                 is->drop_vframe_count++;
-
+                av_log(NULL, AV_LOG_DEBUG, "accurate seek drop a video frame. count:%d", is->drop_vframe_count);
                 //这部分代码需要改动
                 // while ( is->audio_accurate_seek_req && !is->abort_request) {
                 //     int64_t apts = is->accurate_seek_aframe_pts ;
@@ -1614,7 +1617,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                 SDL_CondWaitTimeout(is->video_accurate_seek_cond, is->accurate_seek_mutex, ffp->accurate_seek_timeout);
             } else {
                 if (!isnan(pts)) {
-                    av_log(NULL, AV_LOG_INFO, "xxx FFP_MSG_ACCURATE_SEEK_COMPLETE");
+                    av_log(NULL, AV_LOG_INFO, "xxx FFP_MSG_ACCURATE_SEEK_COMPLETE pts:%lld", pts);
                     ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, (int)(pts * 1000));
                 } else {
                     ffp_notify_msg2(ffp, FFP_MSG_ACCURATE_SEEK_COMPLETE, 0);
@@ -1678,6 +1681,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
 #endif
         // add by ljt
         AVRational base_rational = {1, AV_TIME_BASE};
+        av_log(NULL, AV_LOG_ERROR, "ijk src_frame->pts:%lld", src_frame->pts);
 	    src_frame->pts = av_rescale_q(src_frame->pts, is->video_st->time_base, base_rational);
         // add end
 
@@ -2027,8 +2031,8 @@ static int audio_thread(void *arg)
         av_log(NULL, AV_LOG_INFO, "before decode audio frame, tid:%d", gettid());
         if ((got_frame = decoder_decode_frame(ffp, &is->auddec, frame, NULL)) < 0)
             goto the_end;
-        // av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lf is->audio_accurate_seek_req:%d is->seek_req:%d", 
-        //                        frame->pts, is->audio_accurate_seek_req, is->seek_req);
+        av_log(NULL, AV_LOG_INFO, "audio got frame pts:%lf is->audio_accurate_seek_req:%d is->seek_req:%d", 
+                                frame->pts, is->audio_accurate_seek_req, is->seek_req);
         if (got_frame) {
                 tb = (AVRational){1, frame->sample_rate};
                 if (ffp->enable_accurate_seek && is->audio_accurate_seek_req && !is->seek_req) {
@@ -2046,6 +2050,7 @@ static int audio_thread(void *arg)
                         //音频还没有找到， 或者音频远大于要找的位置
                         if ((audio_clock * 1000 * 1000 < is->seek_pos ) || deviation > MAX_DEVIATION) {
                             if (is->drop_aframe_count == 0) {
+                                //开始seek的时间，不过这写的好怪异，直接seek的时候计算好不香吗
                                 SDL_LockMutex(is->accurate_seek_mutex);
                                 if (is->accurate_seek_start_time <= 0 && (is->video_stream < 0 || is->video_accurate_seek_req)) {
                                     is->accurate_seek_start_time = now;
@@ -2055,6 +2060,7 @@ static int audio_thread(void *arg)
                                 av_log(NULL, AV_LOG_INFO, "audio accurate_seek start, is->seek_pos=%lld, audio_clock=%lf, is->accurate_seek_start_time = %lld\n", is->seek_pos, audio_clock, is->accurate_seek_start_time);
                             }
                             is->drop_aframe_count++;
+                            av_log(NULL, AV_LOG_DEBUG, "accurate seek drop a audio frame. count:", is->drop_aframe_count);
                             while (is->video_accurate_seek_req && !is->abort_request) {
                                 int64_t vpts = is->accurate_seek_vframe_pts;
                                 deviation2 = vpts  - audio_clock * 1000 * 1000;
@@ -2367,7 +2373,7 @@ static int ffplay_video_thread(void *arg)
 #endif
             duration = (frame_rate.num && frame_rate.den ? av_q2d((AVRational){frame_rate.den, frame_rate.num}) : 0);
             pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
-            //av_log(NULL, AV_LOG_INFO, "video frame->pts:%lld pts:%lf", frame->pts, pts);
+            av_log(NULL, AV_LOG_INFO, "video frame->pts:%lld pts:%lf", frame->pts, pts);
             ret = queue_picture(ffp, frame, pts, duration, frame->pkt_pos, is->viddec.pkt_serial);
             av_frame_unref(frame);
 #if CONFIG_AVFILTER
@@ -3270,6 +3276,7 @@ static int read_thread(void *arg)
         if (ic->start_time != AV_NOPTS_VALUE)
             timestamp += ic->start_time;
         ret = avformat_seek_file(ic, -1, INT64_MIN, timestamp, INT64_MAX, 0);
+        // av_log(NULL, AV_LOG_ERROR, "seek time:%lld", timestamp);
         if (ret < 0) {
             av_log(NULL, AV_LOG_WARNING, "%s: could not seek to position %0.3f\n",
                     is->filename, (double)timestamp / AV_TIME_BASE);
@@ -3444,6 +3451,7 @@ static int read_thread(void *arg)
             ffp_toggle_buffering(ffp, 1);
             ffp_notify_msg3(ffp, FFP_MSG_BUFFERING_UPDATE, 0, 0);
             ret = avformat_seek_file(is->ic, -1, seek_min, seek_target, seek_max, is->seek_flags);
+            // av_log(NULL, AV_LOG_ERROR, "seek pos:%lld", seek_target);
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR,
                        "%s: error while seeking\n", is->ic->filename);
@@ -3517,6 +3525,7 @@ static int read_thread(void *arg)
             }
 
             //只是普通seek的结束回调，说白了就是ffmpeg的seek,上层不应该用这个去做任何判断
+            // av_log(NULL, AV_LOG_INFO, "send FFP_MSG_SEEK_COMPLETE");
             ffp_notify_msg3(ffp, FFP_MSG_SEEK_COMPLETE, (int)fftime_to_milliseconds(seek_target), ret);
             ffp_toggle_buffering(ffp, 1);
         }
@@ -3554,6 +3563,7 @@ static int read_thread(void *arg)
             (!is->audio_st || (is->auddec.finished == is->audioq.serial && frame_queue_nb_remaining(&is->sampq) == 0)) &&
             (!is->video_st || (is->viddec.finished == is->videoq.serial && frame_queue_nb_remaining(&is->pictq) == 0))) {
             if (ffp->loop != 1 && (!ffp->loop || --ffp->loop)) {
+                av_log(ffp, AV_LOG_INFO, "seek to start pos. play again");
                 stream_seek(is, ffp->start_time != AV_NOPTS_VALUE ? ffp->start_time : 0, 0, 0);
             } else if (ffp->autoexit) {
                 ret = AVERROR_EOF;
@@ -3587,6 +3597,7 @@ static int read_thread(void *arg)
             }
         }
         pkt->flags = 0;
+        // av_log(ffp, AV_LOG_INFO, "av_read_frame");
         ret = av_read_frame(ic, pkt);
         if (ret < 0) {
             int pb_eof = 0;
@@ -3665,7 +3676,7 @@ static int read_thread(void *arg)
         
             static int i = 0;
             //if (i++ %10 == 0) {
-                av_log(NULL, AV_LOG_DEBUG, "read audio pkt: %lld. put queue. av_q2d pts:%lf", pkt_ts, pkt_ts * av_q2d(ic->streams[pkt->stream_index]->time_base));
+                // av_log(NULL, AV_LOG_DEBUG, "read audio pkt: %lld. put queue. av_q2d pts:%lf", pkt_ts, pkt_ts * av_q2d(ic->streams[pkt->stream_index]->time_base));
             //}
             int audioPts = pkt_ts * av_q2d(ic->streams[pkt->stream_index]->time_base) * 1000 * 1000;
             if (is->audio_accurate_seek_req && is->seek_pos > audioPts) {
@@ -3929,6 +3940,8 @@ static void ffp_log_callback_brief(void *ptr, int level, const char *fmt, va_lis
     if (level > av_log_get_level())
         return;
 
+
+
     int ffplv __unused = log_level_av_to_ijk(level);
     VLOG(ffplv, IJK_LOG_TAG, fmt, vl);
 }
@@ -3938,6 +3951,10 @@ static void ffp_log_callback_report(void *ptr, int level, const char *fmt, va_li
     if (level > av_log_get_level())
         return;
 
+    // TODO: for test;
+    if (level > AV_LOG_INFO) {
+        return;
+    }
     int ffplv __unused = log_level_av_to_ijk(level);
 
     va_list vl2;
@@ -4408,6 +4425,7 @@ int ffp_start_from_l(FFPlayer *ffp, long msec)
         return EIJK_NULL_IS_PTR;
 
     ffp->auto_resume = 1;
+    av_log(NULL, AV_LOG_INFO, "send FFP_MSG_SEEK_COMPLETE");
     ffp_toggle_buffering(ffp, 1);
     ffp_seek_to_l(ffp, msec);
     return 0;

@@ -285,6 +285,7 @@ LABEL_RETURN:
 static void
 IjkMediaPlayer_stop(JNIEnv *env, jobject thiz)
 {
+    MPTRACE("%s\n", __func__);
     IjkMediaPlayer *mp = jni_get_media_player(env, thiz);
     JNI_CHECK_GOTO(mp, env, "java/lang/IllegalStateException", "mpjni: stop: null mp", LABEL_RETURN);
 
@@ -309,7 +310,7 @@ LABEL_RETURN:
 static void
 IjkMediaPlayer_seekTo(JNIEnv *env, jobject thiz, jlong msec)
 {
-    //MPTRACE("%s\n", __func__);
+    // MPTRACE("%s\n", __func__);
     IjkMediaPlayer *mp = jni_get_media_player(env, thiz);
     JNI_CHECK_GOTO(mp, env, "java/lang/IllegalStateException", "mpjni: seekTo: null mp", LABEL_RETURN);
 
@@ -966,11 +967,11 @@ static void message_loop_n(JNIEnv *env, IjkMediaPlayer *mp)
             post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_COMPONENT_OPEN, 0);
             break;
         case FFP_MSG_BUFFERING_START:
-            MPTRACE("FFP_MSG_BUFFERING_START:\n");
+            // MPTRACE("FFP_MSG_BUFFERING_START:\n");
             post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_BUFFERING_START, msg.arg1);
             break;
         case FFP_MSG_BUFFERING_END:
-            MPTRACE("FFP_MSG_BUFFERING_END:\n");
+            // MPTRACE("FFP_MSG_BUFFERING_END:\n");
             post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_BUFFERING_END, msg.arg1);
             break;
         case FFP_MSG_BUFFERING_UPDATE:
@@ -982,7 +983,7 @@ static void message_loop_n(JNIEnv *env, IjkMediaPlayer *mp)
         case FFP_MSG_BUFFERING_TIME_UPDATE:
             break;
         case FFP_MSG_SEEK_COMPLETE:
-            MPTRACE("FFP_MSG_SEEK_COMPLETE:\n");
+            // MPTRACE("FFP_MSG_SEEK_COMPLETE:\n");
             post_event(env, weak_thiz, MEDIA_SEEK_COMPLETE, 0, 0);
             break;
         case FFP_MSG_ACCURATE_SEEK_COMPLETE:
@@ -1012,7 +1013,7 @@ static void message_loop_n(JNIEnv *env, IjkMediaPlayer *mp)
             }
             break;
         case FFP_MSG_VIDEO_SEEK_RENDERING_START:
-            MPTRACE("FFP_MSG_VIDEO_SEEK_RENDERING_START:%d\n", msg.arg1);
+            // MPTRACE("FFP_MSG_VIDEO_SEEK_RENDERING_START:%d\n", msg.arg1);
             post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_VIDEO_SEEK_RENDERING_START, msg.arg1);
             break;
         case FFP_MSG_AUDIO_SEEK_RENDERING_START:

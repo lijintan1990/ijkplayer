@@ -186,7 +186,7 @@ static int func_display_overlay_l(SDL_Vout *vout, SDL_VoutOverlay *overlay)
     case SDL_FCC_RV16:
     case SDL_FCC_RV32: {
         // both GLES & ANativeWindow support
-        ALOGD("both GLES & ANativeWindow support %d %p", vout->overlay_format == SDL_FCC__GLES2, opaque->egl);
+        // ALOGD("both GLES & ANativeWindow support %d %p", vout->overlay_format == SDL_FCC__GLES2, opaque->egl);
         if (vout->overlay_format == SDL_FCC__GLES2 && opaque->egl) {
             return IJK_EGL_display(opaque->egl, native_window, overlay);
         }

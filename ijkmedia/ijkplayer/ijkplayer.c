@@ -592,11 +592,11 @@ int ijkmp_seek_to_l(IjkMediaPlayer *mp, long msec)
 int ijkmp_seek_to(IjkMediaPlayer *mp, long msec)
 {
     assert(mp);
-    //MPTRACE("ijkmp_seek_to(%ld)\n", msec);
+    // MPTRACE("ijkmp_seek_to(%ld)\n", msec);
     pthread_mutex_lock(&mp->mutex);
     int retval = ijkmp_seek_to_l(mp, msec);
     pthread_mutex_unlock(&mp->mutex);
-    //MPTRACE("ijkmp_seek_to(%ld)=%d\n", msec, retval);
+    // MPTRACE("ijkmp_seek_to(%ld)=%d\n", msec, retval);
 
     return retval;
 }
@@ -712,7 +712,7 @@ int ijkmp_get_msg(IjkMediaPlayer *mp, AVMessage *msg, int block)
             break;
 
         case FFP_MSG_COMPLETED:
-            MPTRACE("ijkmp_get_msg: FFP_MSG_COMPLETED\n");
+            // MPTRACE("ijkmp_get_msg: FFP_MSG_COMPLETED\n");
 
             pthread_mutex_lock(&mp->mutex);
             mp->restart = 1;
@@ -722,7 +722,7 @@ int ijkmp_get_msg(IjkMediaPlayer *mp, AVMessage *msg, int block)
             break;
 
         case FFP_MSG_SEEK_COMPLETE:
-            MPTRACE("ijkmp_get_msg: FFP_MSG_SEEK_COMPLETE\n");
+            // MPTRACE("ijkmp_get_msg: FFP_MSG_SEEK_COMPLETE\n");
 
             pthread_mutex_lock(&mp->mutex);
             mp->seek_req = 0;
@@ -780,7 +780,7 @@ int ijkmp_get_msg(IjkMediaPlayer *mp, AVMessage *msg, int block)
             if (0 == ikjmp_chkst_seek_l(mp->mp_state)) {
                 mp->restart_from_beginning = 0;
                 if (0 == ffp_seek_to_l(mp->ffplayer, msg->arg1)) {
-                    av_log(mp->ffplayer, AV_LOG_DEBUG, "ijkmp_get_msg: FFP_REQ_SEEK: seek to %d\n", (int)msg->arg1);
+                    // av_log(mp->ffplayer, AV_LOG_DEBUG, "ijkmp_get_msg: FFP_REQ_SEEK: seek to %d\n", (int)msg->arg1);
                 }
             }
             pthread_mutex_unlock(&mp->mutex);
